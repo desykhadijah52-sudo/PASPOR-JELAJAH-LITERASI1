@@ -1,0 +1,195 @@
+{
+  "entities": {
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized teacher/admin record granting full classroom recap read access.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 160,
+          "description": "Verified teacher Google account email."
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Teacher display name."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when admin entry was created."
+        }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "StudentProfile": {
+      "title": "StudentProfile",
+      "description": "Student passport identity and collected destination visa stamps.",
+      "type": "object",
+      "properties": {
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the account that owns this student profile."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Student full name."
+        },
+        "className": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "description": "Student class label such as VII-A."
+        },
+        "stampsCollected": {
+          "type": "array",
+          "description": "Bounded list of up to 6 earned region stamp IDs."
+        },
+        "lastPlayedAt": {
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 40,
+          "description": "ISO timestamp of latest activity."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server last-updated timestamp."
+        }
+      },
+      "required": ["ownerUid", "name", "className", "stampsCollected", "lastPlayedAt", "createdAt", "updatedAt"]
+    },
+    "SessionRecord": {
+      "title": "SessionRecord",
+      "description": "Immutable reading literacy game session record for student and teacher recap.",
+      "type": "object",
+      "properties": {
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the student or classroom host submitting this score."
+        },
+        "studentName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Student name."
+        },
+        "className": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32,
+          "description": "Student class."
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["paspor", "balapan"],
+          "description": "Game mode played."
+        },
+        "destinationLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Destination or race track name."
+        },
+        "score": {
+          "type": "number",
+          "description": "Total points earned."
+        },
+        "correctCount": {
+          "type": "number",
+          "description": "Number of correct answers."
+        },
+        "totalQuestions": {
+          "type": "number",
+          "description": "Total questions answered."
+        },
+        "accuracy": {
+          "type": "number",
+          "description": "Accuracy percentage (0 to 100)."
+        },
+        "avgResponseTimeSec": {
+          "type": "number",
+          "description": "Average response time in seconds."
+        },
+        "durationSec": {
+          "type": "number",
+          "description": "Total session duration in seconds."
+        },
+        "raceRank": {
+          "type": "number",
+          "description": "Optional finishing rank (1 to 4) in race mode."
+        },
+        "raceModeType": {
+          "type": "string",
+          "enum": ["solo-bot", "duel-kelas"],
+          "description": "Optional race mode subtype."
+        },
+        "stampsEarned": {
+          "type": "array",
+          "description": "List of stamp names earned in this session (max 6)."
+        },
+        "aspectBreakdown": {
+          "type": "object",
+          "description": "Per-aspect correct and total counts map."
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "maxLength": 40,
+          "description": "Client ISO timestamp for display sorting."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp enforced by security rules."
+        }
+      },
+      "required": [
+        "ownerUid",
+        "studentName",
+        "className",
+        "mode",
+        "destinationLabel",
+        "score",
+        "correctCount",
+        "totalQuestions",
+        "accuracy",
+        "avgResponseTimeSec",
+        "durationSec",
+        "stampsEarned",
+        "aspectBreakdown",
+        "timestamp",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Admin/teacher registry for full classroom recap access."
+    },
+    "/studentProfiles/{profileId}": {
+      "schema": { "$ref": "#/entities/StudentProfile" },
+      "description": "Student passport stamp profiles owned by authenticated users and readable by teachers."
+    },
+    "/sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/SessionRecord" },
+      "description": "Completed Paspor Literasi and Mode Balapan student recap logs."
+    }
+  }
+}

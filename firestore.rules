@@ -1,0 +1,165 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedEmail() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAnonymousUser() {
+      return isSignedIn() && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    function isAllowedWriter() {
+      return isVerifiedEmail() || isAnonymousUser();
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdminEmail() {
+      return isVerifiedEmail() && request.auth.token.email == 'desykhadijah52@guru.smp.belajar.id';
+    }
+
+    function isAdmin() {
+      return isAdminEmail() || (
+        isVerifiedEmail() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidStampList(arr) {
+      return arr is list && arr.size() <= 6 && (arr.size() == 0 || arr[0] is string);
+    }
+
+    function isValidAspectEntry(entry) {
+      return entry is map
+        && entry.keys().hasAll(['correct', 'total'])
+        && entry.keys().hasOnly(['correct', 'total'])
+        && entry.correct is number && entry.correct >= 0 && entry.correct <= 100
+        && entry.total is number && entry.total >= 0 && entry.total <= 100;
+    }
+
+    function isValidAspectBreakdown(m) {
+      return m is map
+        && m.keys().hasAll(['Ide Pokok', 'Kosakata', 'Inferensi', 'Fakta & Opini', 'Pesan & Makna'])
+        && m.keys().hasOnly(['Ide Pokok', 'Kosakata', 'Inferensi', 'Fakta & Opini', 'Pesan & Makna'])
+        && isValidAspectEntry(m['Ide Pokok'])
+        && isValidAspectEntry(m['Kosakata'])
+        && isValidAspectEntry(m['Inferensi'])
+        && isValidAspectEntry(m['Fakta & Opini'])
+        && isValidAspectEntry(m['Pesan & Makna']);
+    }
+
+    function isValidStudentProfile(data) {
+      return data.keys().hasAll([
+          'ownerUid', 'name', 'className', 'stampsCollected',
+          'lastPlayedAt', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerUid', 'name', 'className', 'stampsCollected',
+          'lastPlayedAt', 'createdAt', 'updatedAt'
+        ])
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && data.ownerUid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 80
+        && data.className is string && data.className.size() >= 1 && data.className.size() <= 32
+        && isValidStampList(data.stampsCollected)
+        && data.lastPlayedAt is string && data.lastPlayedAt.size() >= 1 && data.lastPlayedAt.size() <= 40
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSessionRecord(data) {
+      return data.keys().hasAll([
+          'ownerUid', 'studentName', 'className', 'mode', 'destinationLabel',
+          'score', 'correctCount', 'totalQuestions', 'accuracy',
+          'avgResponseTimeSec', 'durationSec', 'stampsEarned',
+          'aspectBreakdown', 'timestamp', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerUid', 'studentName', 'className', 'mode', 'destinationLabel',
+          'score', 'correctCount', 'totalQuestions', 'accuracy',
+          'avgResponseTimeSec', 'durationSec', 'raceRank', 'raceModeType',
+          'stampsEarned', 'aspectBreakdown', 'timestamp', 'createdAt'
+        ])
+        && data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128
+        && data.ownerUid.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.studentName is string && data.studentName.size() >= 1 && data.studentName.size() <= 80
+        && data.className is string && data.className.size() >= 1 && data.className.size() <= 32
+        && data.mode in ['paspor', 'balapan']
+        && data.destinationLabel is string && data.destinationLabel.size() >= 1 && data.destinationLabel.size() <= 100
+        && data.score is number && data.score >= 0 && data.score <= 100000
+        && data.correctCount is number && data.correctCount >= 0 && data.correctCount <= 200
+        && data.totalQuestions is number && data.totalQuestions >= 0 && data.totalQuestions <= 200
+        && data.accuracy is number && data.accuracy >= 0 && data.accuracy <= 100
+        && data.avgResponseTimeSec is number && data.avgResponseTimeSec >= 0 && data.avgResponseTimeSec <= 3600
+        && data.durationSec is number && data.durationSec >= 0 && data.durationSec <= 7200
+        && (!('raceRank' in data) || (data.raceRank is number && data.raceRank >= 1 && data.raceRank <= 4))
+        && (!('raceModeType' in data) || (data.raceModeType in ['solo-bot', 'duel-kelas']))
+        && isValidStampList(data.stampsEarned)
+        && isValidAspectBreakdown(data.aspectBreakdown)
+        && data.timestamp is string && data.timestamp.size() >= 1 && data.timestamp.size() <= 40
+        && data.createdAt is timestamp;
+    }
+
+    // Admins registry (read-only by self)
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && isValidId(adminId) && request.auth.uid == adminId;
+      allow list, create, update, delete: if false;
+    }
+
+    // Student Passport Profiles
+    match /studentProfiles/{profileId} {
+      allow get: if isSignedIn() && isValidId(profileId) && (isAdmin() || existing().ownerUid == request.auth.uid);
+      allow list: if isSignedIn() && (isAdminEmail() || existing().ownerUid == request.auth.uid);
+      allow create: if isAllowedWriter()
+        && isValidId(profileId)
+        && isValidStudentProfile(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isAllowedWriter()
+        && isValidId(profileId)
+        && isValidStudentProfile(incoming())
+        && (isAdmin() || existing().ownerUid == request.auth.uid)
+        && incoming().ownerUid == existing().ownerUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'className', 'stampsCollected', 'lastPlayedAt', 'updatedAt'
+        ]);
+      allow delete: if isAllowedWriter() && isValidId(profileId) && (isAdmin() || existing().ownerUid == request.auth.uid);
+    }
+
+    // Session Recap Records (immutable after creation)
+    match /sessions/{sessionId} {
+      allow get: if isSignedIn() && isValidId(sessionId) && (isAdmin() || existing().ownerUid == request.auth.uid);
+      allow list: if isSignedIn() && (isAdminEmail() || existing().ownerUid == request.auth.uid);
+      allow create: if isAllowedWriter()
+        && isValidId(sessionId)
+        && isValidSessionRecord(incoming())
+        && incoming().ownerUid == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isAllowedWriter() && isValidId(sessionId) && (isAdmin() || existing().ownerUid == request.auth.uid);
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Paspor Literasi",
+  "description": "Gim edukasi paspor literasi membaca dengan mode petualangan stempel, mode balapan literasi, dan rekapan hasil belajar siswa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
